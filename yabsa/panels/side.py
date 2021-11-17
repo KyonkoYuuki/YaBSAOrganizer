@@ -18,6 +18,7 @@ from yabsa.panels.types.deflection_panel import DeflectionPanel
 from yabsa.panels.types.effect_panel import EffectPanel
 from yabsa.panels.types.sound import SoundPanel
 from yabsa.panels.types.type8_panel import Type8Panel
+from yabsa.panels.types.type12_panel import Type12Panel
 
 
 RE_PATTERN = re.compile(r".*'(.*[.])*(.*)'.*")
