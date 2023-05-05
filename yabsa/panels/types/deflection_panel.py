@@ -17,6 +17,6 @@ class DeflectionPanel(BasePanel):
         self.i_40 = self.add_hex_entry(self.entry_page, 'I_40')
         self.i_44 = self.add_hex_entry(self.entry_page, 'I_44')
         self.i_48 = self.add_hex_entry(self.entry_page, 'I_48', max=MAX_UINT16)
-        self.i_50 = self.add_hex_entry(self.entry_page, 'I_50', max=MAX_UINT16)
+        self.newpower = self.add_num_entry(self.entry_page, 'New Power', max=MAX_UINT16)
         self.i_52 = self.add_hex_entry(self.entry_page, 'I_52', max=MAX_UINT16)
         self.i_54 = self.add_hex_entry(self.entry_page, 'I_54', max=MAX_UINT16)

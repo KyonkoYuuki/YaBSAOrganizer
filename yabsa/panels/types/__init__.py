@@ -8,6 +8,7 @@ from pyxenoverse.gui.ctrl.multiple_selection_box import MultipleSelectionBox
 from pyxenoverse.gui.ctrl.single_selection_box import SingleSelectionBox
 from pyxenoverse.gui.ctrl.text_ctrl import TextCtrl
 from pyxenoverse.gui.ctrl.unknown_hex_ctrl import UnknownHexCtrl
+from pyxenoverse.gui.ctrl.num_ctrl import NumCtrl
 
 MAX_UINT16 = 0xFFFF
 MAX_UINT32 = 0xFFFFFFFF
@@ -49,7 +50,7 @@ class Page(ScrolledPanel):
 
 
 class BasePanel(wx.Panel):
-    def __init__(self, parent, root, name, item_type, unknown=True, has_duration=True):
+    def __init__(self, parent, root, name, item_type, unknown=True, has_duration=True, has_starttime=True):
         wx.Panel.__init__(self, parent)
         self.parent = parent
         self.root = root
@@ -59,6 +60,7 @@ class BasePanel(wx.Panel):
         self.item_type = item_type
         self.edit_thread = None
         self.has_duration = has_duration
+        self.has_starttime = has_starttime
 
         self.notebook = wx.Notebook(self)
         self.entry_page = Page(self.notebook)
@@ -122,6 +124,13 @@ class BasePanel(wx.Panel):
         return UnknownHexCtrl(panel, *args, **kwargs)
 
     @add_entry
+    def add_unknown_num_entry(self, panel, _, *args, **kwargs):
+        if 'size' not in kwargs:
+            kwargs['size'] = (150, -1)
+        kwargs['min'], kwargs['max'] = 0, 65535
+        return NumCtrl(panel, *args, **kwargs)
+
+    @add_entry
     def add_float_entry(self, panel, _, *args, **kwargs):
         if 'size' not in kwargs:
             kwargs['size'] = (150, -1)
@@ -182,6 +191,25 @@ class BasePanel(wx.Panel):
         if self.entry is None:
             return
         start_time = self.entry.start_time if self.has_duration else 0
+
+        #create the backup tmp's, but make sure its the correct type so no NULL val is returned
+        #is this needed? is there an easier way  to write this?
+        if self.entry.bsa_record.__name__ == "BSAEffect":
+            eepk_type_tmp = self.entry.eepk_type
+        elif self.entry.bsa_record.__name__ == "BSASound":
+            acb_file_tmp = self.entry.acb_file
+        elif self.entry.bsa_record.__name__ == "BSAScreenEffect":
+            bpe_effect_id_tmp = self.entry.bpe_effect_id
+
+
+        elif self.entry.bsa_record.__name__ == "BSACollision":
+            eepk_type_col_tmp = self.entry.eepk_type
+
+
+
+        do_update_startime = False
+        do_update_maintype = False
+
         for name in self.entry.__fields__:
             control = self[name]
             # SpinCtrlDoubles suck
@@ -194,13 +222,31 @@ class BasePanel(wx.Panel):
             else:
                 self.entry[name] = control.GetValue()
 
-        if not self.has_duration:
-            return
+        if self.has_duration and self.has_starttime:
+            self.entry.start_time = self.start_time.GetValue()
+            self.entry.duration = self.duration.GetValue()
+            if self.entry.start_time != start_time:
+                do_update_startime = True
 
-        self.entry.start_time = self.start_time.GetValue()
-        self.entry.duration = self.duration.GetValue()
-        if self.entry.start_time != start_time:
+
+
+        ##UNLEASHED: check exclusive type updates
+        if self.entry.bsa_record.__name__ == "BSAEffect":
+            do_update_maintype = True if self.entry.eepk_type != eepk_type_tmp else False
+        elif self.entry.bsa_record.__name__ == "BSASound":
+            do_update_maintype = True if self.entry.acb_file != acb_file_tmp else False
+        elif self.entry.bsa_record.__name__ == "BSAScreenEffect":
+            do_update_maintype = True if self.entry.bpe_effect_id != bpe_effect_id_tmp else False
+        elif self.entry.bsa_record.__name__ == "BSACollision":
+            do_update_maintype = True if self.entry.eepk_type != eepk_type_col_tmp else False
+
+
+
+
+        if do_update_startime:
             pub.sendMessage('update_item', item=self.item, entry=self.entry)
+            pub.sendMessage('reindex')
+        if do_update_maintype:
             pub.sendMessage('reindex')
 
     def focus_on(self, entry):

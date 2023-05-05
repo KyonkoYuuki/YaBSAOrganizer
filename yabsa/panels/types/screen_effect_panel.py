@@ -1,10 +1,14 @@
-from yabsa.panels.types import BasePanel
+from yabsa.panels.types import BasePanel, MAX_UINT16
+from pyxenoverse.bsa.types.screen_effect import ScreenEffect
 
 
-class Type8Panel(BasePanel):
+class ScreenEffectPanel(BasePanel):
     def __init__(self, *args):
         BasePanel.__init__(self, *args, unknown=False)
-        self.i_00 = self.add_hex_entry(self.entry_page, 'I_00')
+        self.bpe_effect_id = self.add_unknown_num_entry(self.entry_page, 'BPE Effect Id',
+                                                        knownValues=ScreenEffect.description)
+        self.i_02 = self.add_hex_entry(self.entry_page, 'I_02')
+
         self.i_04 = self.add_hex_entry(self.entry_page, 'I_04')
         self.i_08 = self.add_hex_entry(self.entry_page, 'I_08')
         self.i_12 = self.add_hex_entry(self.entry_page, 'I_12')

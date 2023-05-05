@@ -4,7 +4,7 @@ import pickle
 import wx
 from pubsub import pub
 
-from pyxenoverse.bsa.entry import Entry
+from pyxenoverse.bsa.entry import Entry, DataList
 from pyxenoverse.bsa.collision import Collision
 from pyxenoverse.bsa.expiration import Expiration
 from pyxenoverse.bsa.sub_entry import SubEntry, ITEM_TYPES
@@ -15,6 +15,7 @@ from pyxenoverse.gui.ctrl.unknown_hex_ctrl import UnknownHexCtrl
 from pyxenoverse.gui.file_drop_target import FileDropTarget
 
 from yabsa.dlg.new import NewEntryDialog
+from yabac.dlg.offset import OffsetDialog
 
 
 class MainPanel(wx.Panel):
@@ -25,6 +26,8 @@ class MainPanel(wx.Panel):
         self.bsa = None
         self.cdo = None
         self.refresh = True
+        self.offset_id = wx.NewId()
+        self.inc_offset_id = wx.NewId()
 
         self.entry_list = wx.TreeCtrl(self, style=wx.TR_MULTIPLE | wx.TR_HAS_BUTTONS | wx.TR_FULL_ROW_HIGHLIGHT | wx.TR_LINES_AT_ROOT | wx.TR_HIDE_ROOT)
         self.entry_list.SetDropTarget(FileDropTarget(self, "load_bsa"))
@@ -38,12 +41,17 @@ class MainPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.on_copy, id=wx.ID_COPY)
         self.Bind(wx.EVT_MENU, self.on_paste, id=wx.ID_PASTE)
         self.Bind(wx.EVT_MENU, self.on_add_copy, id=wx.ID_ADD)
+        self.Bind(wx.EVT_MENU, self.on_offset, id=self.offset_id)
+        self.Bind(wx.EVT_MENU, self.on_offset_inc, id=self.inc_offset_id)
+
         self.Bind(wx.EVT_MENU, self.on_new, id=wx.ID_NEW)
 
         accelerator_table = wx.AcceleratorTable([
             (wx.ACCEL_CTRL, ord('c'), wx.ID_COPY),
+            (wx.ACCEL_CTRL, ord('b'), self.offset_id),
+            (wx.ACCEL_CTRL, ord('n'), self.inc_offset_id),
             (wx.ACCEL_CTRL, ord('v'), wx.ID_PASTE),
-            (wx.ACCEL_CTRL | wx.ACCEL_SHIFT, ord('v'), wx.ID_ADD),
+            (wx.ACCEL_CTRL, ord('a'), wx.ID_ADD),
             (wx.ACCEL_NORMAL, wx.WXK_DELETE, wx.ID_DELETE),
         ])
         self.entry_list.SetAcceleratorTable(accelerator_table)
@@ -92,6 +100,25 @@ class MainPanel(wx.Panel):
         self.enable_selected(delete, single=False)
         copy = menu.Append(wx.ID_COPY, "Copy\tCtrl+C", "&Copy entry(s)")
         self.enable_selected(copy)
+        offset = menu.Append(self.offset_id, "Offset Start Time\tCtrl+B", "&offset entry(s) start time")
+        self.enable_selected(offset, single=False)
+        offset_incremental = menu.Append(self.inc_offset_id, "Incrementaly Offset Start Time\tCtrl+N",
+                                         "&incrementaly offset entry(s) start time")
+        self.enable_selected(offset_incremental, single=False)
+
+        for sel in self.entry_list.GetSelections():
+            entry = self.entry_list.GetItemData(sel)
+            entry_class_name = entry.__class__.__name__
+            print(entry.get_name())
+            blacklist = [entry.get_name() == "Entry",
+                         entry.get_name() == "Subentry",
+                         entry.get_name() == "CollisionList",
+                         entry.get_name() == "ExpirationList"]
+            if any(blacklist):
+                offset.Enable(False)
+                offset_incremental.Enable(False)
+                break
+
         menu.AppendSeparator()
         # Paste options
         paste_data = self.get_paste_data(self.entry_list.GetSelections(), False)
@@ -104,9 +131,11 @@ class MainPanel(wx.Panel):
             title.Enable(False)
             paste = menu.Append(wx.ID_PASTE, f"&Paste {name}\tCtrl+V")
             self.enable_selected(paste, entry=paste_data)
-            add_copy = menu.Append(-1, f"Add {name} Copy\tCtrl+Shift+V")
+            add_copy = menu.Append(-1, f"Add {name} Copy\tCtrl+A")
             self.enable_selected(add_copy)
             self.Bind(wx.EVT_MENU, self.on_add_copy, add_copy)
+
+
 
         self.PopupMenu(menu)
         menu.Destroy()
@@ -191,31 +220,53 @@ class MainPanel(wx.Panel):
                 self.entry_list.GetRootItem(), f'{entry.index}: Entry', data=entry)
             self.build_entry_tree(entry_item, entry)
 
-    def build_entry_tree(self, entry_item, entry):
+    def build_entry_tree(self, entry_item, entry, do_sub_entries=True):
+        #UNLEASHED: add collisions and expirations to the top of the tree list (pos 0 and 1 respectivly)
         if entry.collisions:
-            collisions_item = self.entry_list.AppendItem(entry_item, f'Collision (After Effects)', data=entry.collisions)
+            #collisions_item = self.entry_list.AppendItem(entry_item, f'Collision (After Effects)', data=entry.collisions)
+            collisions_item = self.entry_list.InsertItem(entry_item,pos=0, text=f'Collision (After Effects)', data=entry.collisions)
+
             self.build_collision_tree(collisions_item, entry.collisions)
 
         if entry.expirations:
-            expirations_item = self.entry_list.AppendItem(entry_item, f'Expiration (After Effects)', data=entry.expirations)
+            #expirations_item = self.entry_list.AppendItem(entry_item, f'Expiration (After Effects)', data=entry.expirations)
+            expirations_item = self.entry_list.InsertItem(entry_item, pos=1, text=f'Expiration (After Effects)',
+                                                         data=entry.expirations)
             self.build_expiration_tree(expirations_item, entry.expirations)
+        if do_sub_entries:
 
-        for sub_entry in entry.sub_entries:
-            sub_entry_item = self.entry_list.AppendItem(
-                entry_item, f'{sub_entry.type}: {sub_entry.get_type_name()}', data=sub_entry)
-            self.build_sub_entry_tree(sub_entry_item, sub_entry)
+            for sub_entry in entry.sub_entries:
+                sub_entry_item = self.entry_list.AppendItem(
+                    entry_item, f'{sub_entry.type}: {sub_entry.get_type_name()}', data=sub_entry)
+                self.build_sub_entry_tree(sub_entry_item, sub_entry)
 
     def build_collision_tree(self, collisions_item, collisions):
         for n, collision in enumerate(collisions):
-            self.entry_list.AppendItem(collisions_item, f'{n}', data=collision)
+            #self.entry_list.AppendItem(collisions_item, f'{n}', data=collision)
+            if collision.description and collision.description_type:
+                self.entry_list.AppendItem(collisions_item, f'{n}' + " - " +
+                                           collision.description.get(
+                                               collision.__getattr__(collision.description_type), 'Unknown'),
+                                           data=collision)
+            else:
+                self.entry_list.AppendItem(collisions_item, f'{n}', data=collision)
 
     def build_expiration_tree(self, expirations_item, expirations):
         for n, expiration in enumerate(expirations):
             self.entry_list.AppendItem(expirations_item, f'{n}', data=expiration)
 
+
     def build_sub_entry_tree(self, sub_entry_item, sub_entry):
-        for item in sub_entry.items:
-            self.entry_list.AppendItem(sub_entry_item, str(item.start_time), data=item)
+        # for item in sub_entry.items:
+        #     self.entry_list.AppendItem(sub_entry_item, str(item.start_time), data=item)
+
+            for item in sub_entry.items:
+                if item.description and item.description_type:
+                    self.entry_list.AppendItem(sub_entry_item, str(item.start_time) + " - " +
+                                               item.description.get(item.__getattr__(item.description_type), 'Unknown'),
+                                               data=item)
+                else:
+                    self.entry_list.AppendItem(sub_entry_item, str(item.start_time), data=item)
 
     def get_current_entry_ids(self):
         entry_ids = []
@@ -241,7 +292,13 @@ class MainPanel(wx.Panel):
         # Fix tree names
         while item.IsOk():
             data = self.entry_list.GetItemData(item)
-            name = data.get_name() if data else None
+            if data and isinstance(data, list):
+                name = DataList('my_list', data).get_name()
+            elif data:
+                name = data.get_name()
+            else:
+                name = None
+            print(name)
             if name == 'Entry':
                 self.entry_list.SetItemText(item, f'{data.index}: Entry')
             elif name == 'SubEntry':
@@ -250,8 +307,31 @@ class MainPanel(wx.Panel):
                 for entry in sub_entry.items:
                     item = get_next_item(self.entry_list, item)
                     self.entry_list.SetItemData(item, entry)
-                    self.entry_list.SetItemText(item, str(entry.start_time))
+                    # UNLEASHED: do the same as the build_sub_tree function
+
+
+
+                    if entry.description and entry.description_type:
+                        self.entry_list.SetItemText(item, str(entry.start_time) + " - " +
+                                                    entry.description.get(entry.__getattr__(entry.description_type),
+                                                                          'Unknown'))
+                    else:
+                        self.entry_list.SetItemText(item, str(entry.start_time))
+            #Collision and Expiration
+            elif name == "my_list":
+                for n, collision in enumerate(data):
+                    # self.entry_list.AppendItem(collisions_item, f'{n}', data=collision)
+                    item = get_next_item(self.entry_list, item)
+                    if collision.description and collision.description_type:
+                        self.entry_list.SetItemText(item, f'{n}' + " - " +
+                                                   collision.description.get(
+                                                       collision.__getattr__(collision.description_type), 'Unknown')
+                                                   )
+                    else:
+                        self.entry_list.SetItemText(item, f'{n}')
+
             item = get_next_item(self.entry_list, item)
+
 
     def get_entry_item_pair(self, entry):
         return entry, self.entry_list.GetItemData(entry)
@@ -284,6 +364,8 @@ class MainPanel(wx.Panel):
         root = self.entry_list.GetRootItem()
         prev = self.get_previous_index(entry.index)
         item = self.entry_list.InsertItem(root, prev, f'{entry.index}: Entry', data=entry)
+        self.bsa.entries.insert(entry.index, entry)
+
         self.entry_list.SelectItem(item)
         self.on_select(None)
         return item
@@ -297,7 +379,14 @@ class MainPanel(wx.Panel):
         item = self.entry_list.GetFirstChild(bsa_entry)[0]
         while item.IsOk():
             sub_entry = self.entry_list.GetItemData(item)
-            if sub_entry and sub_entry.type == bsa_value:
+            sub_entry_type = None
+
+            if sub_entry and isinstance(sub_entry, list):
+                sub_entry_type = DataList('my_list', sub_entry).type
+            elif sub_entry:
+                sub_entry_type = sub_entry.type
+
+            if sub_entry and sub_entry_type == bsa_value:
                 return item, sub_entry
             item = self.entry_list.GetNextSibling(item)
 
@@ -424,6 +513,7 @@ class MainPanel(wx.Panel):
         sub_entry_data.items.append(new_bsa_type)
         sub_entry_data.items.sort(key=lambda n: n.start_time)
 
+        new_bsa_type.duration = 1
         # Add to correct place in tree list
         index = 0
         item = self.entry_list.GetFirstChild(sub_entry)[0]
@@ -433,6 +523,7 @@ class MainPanel(wx.Panel):
             item = self.entry_list.GetNextSibling(item)
             index += 1
         new_item = self.entry_list.InsertItem(sub_entry, index, '', data=new_bsa_type)
+
         return new_item, new_bsa_type
 
     def on_new(self, _):
@@ -495,11 +586,64 @@ class MainPanel(wx.Panel):
         self.reindex()
         pub.sendMessage('set_status_bar', text="Deleted successfully")
 
+    def on_offset(self, _):
+        selected = self.entry_list.GetSelections()
+        offset_val = 0
+        with OffsetDialog(self, "Offset", -1) as dlg:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            offset_val = dlg.GetValue()
+
+        for sel in selected:
+            entry = self.entry_list.GetItemData(sel)
+            if entry.start_time + offset_val < 0:  # offset by a negetive value
+                temp_offset_val = offset_val + entry.start_time  # subtrack offset amount by the available start time
+                entry.start_time = 0  # start time should be zero now, and temp_offset_val is the remining value
+                entry.duration += temp_offset_val  # subtrack duration from the reminng value (do the same for duration?)
+            else:
+                entry.start_time += offset_val
+
+        # update later to avoid offsetting twice
+        for sel in selected:
+            self.update_item(sel, entry)
+            self.reindex()
+
+        pub.sendMessage('set_status_bar', text=f'Offset {len(selected)} Entries')
+
+    def on_offset_inc(self, _):
+        selected = self.entry_list.GetSelections()
+        inc = 0
+        with OffsetDialog(self, "Incremental Offset", -1) as dlg:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            offset_val = dlg.GetValue()
+            inc = offset_val
+
+        for sel in selected:
+            entry = self.entry_list.GetItemData(sel)
+            if entry.start_time + offset_val < 0:  # offset by a negetive value
+                temp_offset_val = offset_val + entry.start_time  # subtrack offset amount by the available start time
+                entry.start_time = 0  # start time should be zero now, and temp_offset_val is the remining value
+                entry.duration += temp_offset_val  # subtrack duration from the reminng value (do the same for duration?)
+            else:
+                entry.start_time += offset_val
+
+            offset_val += inc
+
+        # update later to avoid offsetting twice
+        for sel in selected:
+            self.update_item(sel, entry)
+            self.reindex()
+
+        pub.sendMessage('set_status_bar', text=f'incrementally Offset {len(selected)} Entries')
+
     def on_copy(self, _):
         selected = self.entry_list.GetSelections()
         if len(selected) > 1:
             with wx.MessageDialog(self, 'Can only copy one entry at a time') as dlg:
                 dlg.ShowModal()
+            return
+        if (len(selected) == 0):
             return
         entry = self.entry_list.GetItemData(selected[0])
         self.cdo = wx.CustomDataObject('BSA')
@@ -576,15 +720,21 @@ class MainPanel(wx.Panel):
         if not paste_data:
             return
         class_name = paste_data.get_name()
+        new_entry = None
+        print(class_name)
         if class_name == 'Entry':
-            item, data = self.on_new(None)
+            result = self.on_new(None)
+            if result is not None:
+                new_entry, data = result
+            else:
+                return
             data.paste(paste_data, copy_sub_entries=False)
-            self.select_item(item)
+            self.select_item(new_entry)
             for sub_entry in paste_data.sub_entries:
-                for item in sub_entry.items:
-                    new_item, new_item_data = self.add_item(item.type, item)
-                    new_item_data.paste(item)
-            self.entry_list.Expand(item)
+                for itm in sub_entry.items:
+                    new_item, new_item_data = self.add_item(itm.type, itm)
+                    new_item_data.paste(itm)
+            self.entry_list.Expand(new_entry)
         elif class_name == 'SubEntry':
             for item in paste_data.items:
                 new_item, new_item_data = self.add_item(item.type, item)
@@ -604,10 +754,26 @@ class MainPanel(wx.Panel):
             new_item, new_item_data = self.add_expiration(paste_data)
             new_item_data.paste(paste_data)
         else:
+            print("ON ADD COPY ELSE IS TRIGGERED")
             new_item, new_item_data = self.add_item(paste_data.type, paste_data)
             new_item_data.paste(paste_data)
+
+
+        if  new_entry:
+            entry = self.entry_list.GetItemData(new_entry)
+            self.build_entry_tree(new_entry, entry, do_sub_entries=False)
+
+
+
+
+
+
+
+
         self.reindex()
         pub.sendMessage('set_status_bar', text=f"Added {paste_data.get_readable_name()}")
+
+
 
     def set_focus(self, focus):
         if type(focus.GetParent()) in (wx.SpinCtrlDouble, UnknownHexCtrl, SingleSelectionBox, MultipleSelectionBox):
