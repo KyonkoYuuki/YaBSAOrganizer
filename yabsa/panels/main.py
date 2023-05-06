@@ -15,7 +15,8 @@ from pyxenoverse.gui.ctrl.unknown_hex_ctrl import UnknownHexCtrl
 from pyxenoverse.gui.file_drop_target import FileDropTarget
 
 from yabsa.dlg.new import NewEntryDialog
-from yabac.dlg.offset import OffsetDialog
+from yabsa.dlg.offset import OffsetDialog
+from yabsa.dlg.comment import CommentDialog
 
 
 class MainPanel(wx.Panel):
@@ -28,6 +29,7 @@ class MainPanel(wx.Panel):
         self.refresh = True
         self.offset_id = wx.NewId()
         self.inc_offset_id = wx.NewId()
+        self.comment_id = wx.NewId()
 
         self.entry_list = wx.TreeCtrl(self, style=wx.TR_MULTIPLE | wx.TR_HAS_BUTTONS | wx.TR_FULL_ROW_HIGHLIGHT | wx.TR_LINES_AT_ROOT | wx.TR_HIDE_ROOT)
         self.entry_list.SetDropTarget(FileDropTarget(self, "load_bsa"))
@@ -42,6 +44,7 @@ class MainPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.on_paste, id=wx.ID_PASTE)
         self.Bind(wx.EVT_MENU, self.on_add_copy, id=wx.ID_ADD)
         self.Bind(wx.EVT_MENU, self.on_offset, id=self.offset_id)
+        self.Bind(wx.EVT_MENU, self.on_comment, id=self.comment_id)
         self.Bind(wx.EVT_MENU, self.on_offset_inc, id=self.inc_offset_id)
 
         self.Bind(wx.EVT_MENU, self.on_new, id=wx.ID_NEW)
@@ -52,6 +55,7 @@ class MainPanel(wx.Panel):
             (wx.ACCEL_CTRL, ord('n'), self.inc_offset_id),
             (wx.ACCEL_CTRL, ord('v'), wx.ID_PASTE),
             (wx.ACCEL_CTRL, ord('a'), wx.ID_ADD),
+            (wx.ACCEL_CTRL, ord('q'), self.comment_id),
             (wx.ACCEL_NORMAL, wx.WXK_DELETE, wx.ID_DELETE),
         ])
         self.entry_list.SetAcceleratorTable(accelerator_table)
@@ -105,11 +109,13 @@ class MainPanel(wx.Panel):
         offset_incremental = menu.Append(self.inc_offset_id, "Incrementaly Offset Start Time\tCtrl+N",
                                          "&incrementaly offset entry(s) start time")
         self.enable_selected(offset_incremental, single=False)
+        comment = menu.Append(self.comment_id, "Add Comment\tCtrl+Q", "Add Comment")
+        self.enable_selected(comment, single=False)
 
         for sel in self.entry_list.GetSelections():
             entry = self.entry_list.GetItemData(sel)
             entry_class_name = entry.__class__.__name__
-            print(entry.get_name())
+            #print(entry.get_name())
             blacklist = [entry.get_name() == "Entry",
                          entry.get_name() == "Subentry",
                          entry.get_name() == "CollisionList",
@@ -117,6 +123,14 @@ class MainPanel(wx.Panel):
             if any(blacklist):
                 offset.Enable(False)
                 offset_incremental.Enable(False)
+                break
+
+        for sel in self.entry_list.GetSelections():
+            entry = self.entry_list.GetItemData(sel)
+            entry_class_name = entry.__class__.__name__
+
+            if entry.get_name() != "Entry":
+                comment.Enable(False)
                 break
 
         menu.AppendSeparator()
@@ -188,7 +202,7 @@ class MainPanel(wx.Panel):
         pub.sendMessage('load_entry', item=selected[0], entry=entry)
 
     def update_entry(self, item, entry):
-        self.entry_list.SetItemText(item, f'{entry.index}: Entry')
+        self.entry_list.SetItemText(item, f'{entry.index}: Entry{entry.getDisplayComment()}')
 
     def update_item(self, item, entry):
         self.refresh = False
@@ -217,7 +231,7 @@ class MainPanel(wx.Panel):
         self.entry_list.AddRoot("Entries")
         for i, entry in enumerate(self.bsa.entries):
             entry_item = self.entry_list.AppendItem(
-                self.entry_list.GetRootItem(), f'{entry.index}: Entry', data=entry)
+                self.entry_list.GetRootItem(), f'{entry.index}: Entry{entry.getDisplayComment()}', data=entry)
             self.build_entry_tree(entry_item, entry)
 
     def build_entry_tree(self, entry_item, entry, do_sub_entries=True):
@@ -298,9 +312,9 @@ class MainPanel(wx.Panel):
                 name = data.get_name()
             else:
                 name = None
-            print(name)
+            #print(name)
             if name == 'Entry':
-                self.entry_list.SetItemText(item, f'{data.index}: Entry')
+                self.entry_list.SetItemText(item, f'{data.index}: Entry{data.getDisplayComment()}')
             elif name == 'SubEntry':
                 self.entry_list.SetItemText(item, f'{data.type}: {data.get_type_name()}')
                 sub_entry = self.entry_list.GetItemData(item)
@@ -637,6 +651,28 @@ class MainPanel(wx.Panel):
 
         pub.sendMessage('set_status_bar', text=f'incrementally Offset {len(selected)} Entries')
 
+    def on_comment(self, _):
+        selected = self.entry_list.GetSelections()
+        entry = self.entry_list.GetItemData(selected[0])
+
+
+        comment_val = ""
+        with CommentDialog(self, "Comment",entry.getComment(), -1) as dlg:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            comment_val = dlg.GetValue()
+
+        for sel in selected:
+            entry = self.entry_list.GetItemData(sel)
+            entry.setComment(comment_val)
+
+        # update later to avoid offsetting twice
+        for sel in selected:
+            self.update_entry(sel, entry)
+
+
+        pub.sendMessage('set_status_bar', text=f'Offset {len(selected)} Entries')
+
     def on_copy(self, _):
         selected = self.entry_list.GetSelections()
         if len(selected) > 1:
@@ -721,7 +757,7 @@ class MainPanel(wx.Panel):
             return
         class_name = paste_data.get_name()
         new_entry = None
-        print(class_name)
+        #print(class_name)
         if class_name == 'Entry':
             result = self.on_new(None)
             if result is not None:
@@ -754,7 +790,7 @@ class MainPanel(wx.Panel):
             new_item, new_item_data = self.add_expiration(paste_data)
             new_item_data.paste(paste_data)
         else:
-            print("ON ADD COPY ELSE IS TRIGGERED")
+            #print("ON ADD COPY ELSE IS TRIGGERED")
             new_item, new_item_data = self.add_item(paste_data.type, paste_data)
             new_item_data.paste(paste_data)
 

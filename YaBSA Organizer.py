@@ -152,7 +152,9 @@ class MainWindow(wx.Frame):
             dlg.ShowModal()
             dlg.Destroy()
             return
+
         self.main_panel.bsa = new_bsa
+        self.main_panel.bsa.loadComment(path)
         self.main_panel.build_tree()
         pub.sendMessage('hide_panels')
         self.name.SetLabel(filename)
@@ -174,6 +176,7 @@ class MainWindow(wx.Frame):
             create_backup(self.dirname, filename)
             path = os.path.join(self.dirname, filename)
             self.main_panel.bsa.save(path)
+            self.main_panel.bsa.saveComment(path)
             self.statusbar.SetStatusText(f"Saved {path}")
             saved = wx.MessageDialog(self, f"Saved to {path} successfully", "BSA Saved")
             saved.ShowModal()
