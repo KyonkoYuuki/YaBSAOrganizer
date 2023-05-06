@@ -200,6 +200,8 @@ class BasePanel(wx.Panel):
             acb_file_tmp = self.entry.acb_file
         elif self.entry.bsa_record.__name__ == "BSAScreenEffect":
             bpe_effect_id_tmp = self.entry.bpe_effect_id
+        elif self.entry.bsa_record.__name__ == "BSAType12":
+            eepk_type_type12_tmp = self.entry.eepk_type
 
 
         elif self.entry.bsa_record.__name__ == "BSACollision":
@@ -237,6 +239,10 @@ class BasePanel(wx.Panel):
             do_update_maintype = True if self.entry.acb_file != acb_file_tmp else False
         elif self.entry.bsa_record.__name__ == "BSAScreenEffect":
             do_update_maintype = True if self.entry.bpe_effect_id != bpe_effect_id_tmp else False
+        elif self.entry.bsa_record.__name__ == "BSAType12":
+            do_update_maintype = True if self.entry.eepk_type != eepk_type_type12_tmp else False
+
+
         elif self.entry.bsa_record.__name__ == "BSACollision":
             do_update_maintype = True if self.entry.eepk_type != eepk_type_col_tmp else False
 
