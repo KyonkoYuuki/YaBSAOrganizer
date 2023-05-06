@@ -44,8 +44,8 @@ class MainPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.on_paste, id=wx.ID_PASTE)
         self.Bind(wx.EVT_MENU, self.on_add_copy, id=wx.ID_ADD)
         self.Bind(wx.EVT_MENU, self.on_offset, id=self.offset_id)
-        self.Bind(wx.EVT_MENU, self.on_comment, id=self.comment_id)
         self.Bind(wx.EVT_MENU, self.on_offset_inc, id=self.inc_offset_id)
+        self.Bind(wx.EVT_MENU, self.on_comment, id=self.comment_id)
 
         self.Bind(wx.EVT_MENU, self.on_new, id=wx.ID_NEW)
 
@@ -671,7 +671,7 @@ class MainPanel(wx.Panel):
             self.update_entry(sel, entry)
 
 
-        pub.sendMessage('set_status_bar', text=f'Offset {len(selected)} Entries')
+        pub.sendMessage('set_status_bar', text=f'Comment Added')
 
     def on_copy(self, _):
         selected = self.entry_list.GetSelections()
