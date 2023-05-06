@@ -1,4 +1,12 @@
 from yabsa.panels.types import BasePanel, MAX_UINT16
+from pubsub import pub
+from pyxenoverse.gui.ctrl.hex_ctrl import HexCtrl
+from pyxenoverse.gui.ctrl.split_hex_ctrl import SplitHexCtrl
+from yabsa.panels.types import add_entry, Page
+from yabsa.panels.types import MAX_UINT16
+
+
+
 
 
 class HitboxPanel(BasePanel):
@@ -7,7 +15,8 @@ class HitboxPanel(BasePanel):
         self.i_00 = self.add_hex_entry(self.unknown_page, 'I_00', max=MAX_UINT16)
         self.i_02 = self.add_hex_entry(self.unknown_page, 'I_02', max=MAX_UINT16)
         self.i_04 = self.add_hex_entry(self.unknown_page, 'I_04', max=MAX_UINT16)
-        self.i_06 = self.add_hex_entry(self.unknown_page, 'I_06', max=MAX_UINT16)
+        self.i_06 = self.add_split_hex_entry(self.entry_page, 'I_06', bytes=1)
+
         self.position_x = self.add_float_entry(self.entry_page, 'Position X')
         self.position_y = self.add_float_entry(self.entry_page, 'Position Y')
         self.position_z = self.add_float_entry(self.entry_page, 'Position Z')
@@ -27,3 +36,7 @@ class HitboxPanel(BasePanel):
         self.bdm_first_hit_id = self.add_num_entry(self.entry_page, 'BDM First Hit ID', max=MAX_UINT16)
         self.bdm_multiple_hits_id = self.add_num_entry(self.entry_page, 'BDM Multiple Hits ID', max=MAX_UINT16)
         self.bdm_last_hit_id = self.add_num_entry(self.entry_page, 'BDM Last Hit ID', max=MAX_UINT16)
+
+    @add_entry
+    def add_split_hex_entry(self, panel, _, *args, **kwargs):
+        return SplitHexCtrl(panel, *args, **kwargs)
