@@ -12,7 +12,20 @@ from yabsa.panels.types import MAX_UINT16
 class HitboxPanel(BasePanel):
     def __init__(self, *args):
         BasePanel.__init__(self, *args)
-        self.i_00 = self.add_hex_entry(self.unknown_page, 'I_00', max=MAX_UINT16)
+
+
+        matrix_page = Page(self.notebook)
+        self.notebook.InsertPage(1, matrix_page, 'Matrix')
+
+
+        self.matrix_flags  = self.add_multiple_selection_entry(matrix_page, 'Matrix Flags', choices=[
+            ('Matrix Properties', [
+                'Enable Min and Max bounds',
+                'Unknown (0x2)',
+                "Unknown (0x4)",
+                'Unknown (0x8)'
+            ], True)
+        ])
         self.i_02 = self.add_hex_entry(self.unknown_page, 'I_02', max=MAX_UINT16)
         self.i_04 = self.add_hex_entry(self.unknown_page, 'I_04', max=MAX_UINT16)
         self.i_06 = self.add_split_hex_entry(self.entry_page, 'I_06', bytes=2)
@@ -21,13 +34,13 @@ class HitboxPanel(BasePanel):
         self.position_y = self.add_float_entry(self.entry_page, 'Position Y')
         self.position_z = self.add_float_entry(self.entry_page, 'Position Z')
         self.hitbox_scale = self.add_float_entry(self.entry_page, 'Hitbox Scale')
-        self.f_24 = self.add_float_entry(self.unknown_page, 'F_24')
-        self.f_28 = self.add_float_entry(self.unknown_page, 'F_28')
-        self.f_32 = self.add_float_entry(self.unknown_page, 'F_32')
-        self.f_36 = self.add_float_entry(self.unknown_page, 'F_36')
-        self.f_40 = self.add_float_entry(self.unknown_page, 'F_40')
-        self.f_44 = self.add_float_entry(self.unknown_page, 'F_44')
-        self.amount = self.add_float_entry(self.entry_page, 'Amount')
+        self.max_box_x = self.add_float_entry(matrix_page, 'Maximum Box X')
+        self.max_box_y = self.add_float_entry(matrix_page, 'Maximum Box Y')
+        self.max_box_z = self.add_float_entry(matrix_page, 'Maximum Box Z')
+        self.min_box_x = self.add_float_entry(matrix_page, 'Minimum Box X')
+        self.min_box_y = self.add_float_entry(matrix_page, 'Minimum Box Y')
+        self.min_box_z = self.add_float_entry(matrix_page, 'Minimum Box Z')
+        self.amount = self.add_num_entry(self.entry_page, 'Amount')
         self.power = self.add_num_entry(self.entry_page, 'Power', max=MAX_UINT16)
         self.i_50 = self.add_hex_entry(self.unknown_page, 'I_50', max=MAX_UINT16)
         self.i_52 = self.add_hex_entry(self.unknown_page, 'I_52', max=MAX_UINT16)
