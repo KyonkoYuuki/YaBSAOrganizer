@@ -41,6 +41,7 @@ class HitboxPanel(BasePanel):
         self.min_box_y = self.add_float_entry(matrix_page, 'Minimum Box Y')
         self.min_box_z = self.add_float_entry(matrix_page, 'Minimum Box Z')
         self.amount = self.add_num_entry(self.entry_page, 'Amount')
+        self.amount_1 = self.add_hex_entry(self.entry_page, 'Amount_1')
         self.power = self.add_num_entry(self.entry_page, 'Power', max=MAX_UINT16)
         self.i_50 = self.add_hex_entry(self.unknown_page, 'I_50', max=MAX_UINT16)
         self.i_52 = self.add_hex_entry(self.unknown_page, 'I_52', max=MAX_UINT16)
