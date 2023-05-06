@@ -155,7 +155,7 @@ class MainWindow(wx.Frame):
 
         self.main_panel.bsa = new_bsa
         self.main_panel.bsa.loadComment(path)
-        self.main_panel.build_tree()
+        self.main_panel.build_tree(inLoadingProcess=True)
         pub.sendMessage('hide_panels')
         self.name.SetLabel(filename)
         self.main_panel.Layout()

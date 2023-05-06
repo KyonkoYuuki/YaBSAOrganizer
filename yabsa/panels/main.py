@@ -225,26 +225,30 @@ class MainPanel(wx.Panel):
         self.on_select(None)
         return new_item
 
-    def build_tree(self):
+    def build_tree(self, inLoadingProcess = False):
         self.entry_list.DeleteAllItems()
         self.entry_list.Refresh()
         self.entry_list.AddRoot("Entries")
         for i, entry in enumerate(self.bsa.entries):
             entry_item = self.entry_list.AppendItem(
                 self.entry_list.GetRootItem(), f'{entry.index}: Entry{entry.getDisplayComment()}', data=entry)
-            self.build_entry_tree(entry_item, entry)
+            self.build_entry_tree(entry_item, entry, inLoadingProcess = True)
 
-    def build_entry_tree(self, entry_item, entry, do_sub_entries=True):
+    def build_entry_tree(self, entry_item, entry, do_sub_entries=True, inLoadingProcess = False):
         #UNLEASHED: add collisions and expirations to the top of the tree list (pos 0 and 1 respectivly)
         if entry.collisions:
-            #collisions_item = self.entry_list.AppendItem(entry_item, f'Collision (After Effects)', data=entry.collisions)
-            collisions_item = self.entry_list.InsertItem(entry_item,pos=0, text=f'Collision (After Effects)', data=entry.collisions)
+            if inLoadingProcess:
+                collisions_item = self.entry_list.AppendItem(entry_item, f'Collision (After Effects)', data=entry.collisions)
+            else:
+                collisions_item = self.entry_list.InsertItem(entry_item,pos=0, text=f'Collision (After Effects)', data=entry.collisions)
 
             self.build_collision_tree(collisions_item, entry.collisions)
 
         if entry.expirations:
-            #expirations_item = self.entry_list.AppendItem(entry_item, f'Expiration (After Effects)', data=entry.expirations)
-            expirations_item = self.entry_list.InsertItem(entry_item, pos=1, text=f'Expiration (After Effects)',
+            if inLoadingProcess:
+                expirations_item = self.entry_list.AppendItem(entry_item, f'Expiration (After Effects)', data=entry.expirations)
+            else:
+                expirations_item = self.entry_list.InsertItem(entry_item, pos=1, text=f'Expiration (After Effects)',
                                                          data=entry.expirations)
             self.build_expiration_tree(expirations_item, entry.expirations)
         if do_sub_entries:
