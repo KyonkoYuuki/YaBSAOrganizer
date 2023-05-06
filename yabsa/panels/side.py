@@ -18,6 +18,7 @@ from yabsa.panels.types.deflection_panel import DeflectionPanel
 from yabsa.panels.types.effect_panel import EffectPanel
 from yabsa.panels.types.sound import SoundPanel
 from yabsa.panels.types.screen_effect_panel import ScreenEffectPanel
+from yabsa.panels.types.type10_panel import Type10Panel
 from yabsa.panels.types.type12_panel import Type12Panel
 from yabsa.panels.types.type13_panel import Type13Panel
 
