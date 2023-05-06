@@ -474,36 +474,42 @@ class MainPanel(wx.Panel):
             return
 
         # Get BSA entry
-        bsa_entry, data = self.get_parent_bsa_entry(bsa_entry)
-        if not bsa_entry or not data:
+        try:
+            bsa_entry, data = self.get_parent_bsa_entry(bsa_entry)
+            if not bsa_entry or not data:
+                return
+
+            # Try to find the collision tree
+            item = self.entry_list.GetFirstChild(bsa_entry)[0]
+            first_text = self.entry_list.GetItemText(item)
+
+            sub_entry = None
+            while item.IsOk():
+                text = self.entry_list.GetItemText(item)
+                if text.startswith("Expiration"):
+                    sub_entry = item
+                    break
+                item = self.entry_list.GetNextSibling(item)
+
+            # Create collision tree if it doesn't exist
+            if not sub_entry:
+                index = 1 if first_text.startswith("Collision") else 0
+                sub_entry = self.entry_list.InsertItem(bsa_entry, index, "Expiration (After Effects)", data=data.expirations)
+
+            # Create new expiration
+            expiration = Expiration()
+            expiration.paste(copied_entry)
+
+            # Add it collision list
+            data.expirations.append(expiration)
+
+            # Add it to tree
+            new_item = self.entry_list.AppendItem(sub_entry, f'{len(data.expirations) - 1}', data=expiration)
+            return new_item, expiration
+        except:
+            with wx.MessageDialog(self, f"Failed to add Expiration entry, probably because Collision entry wasn't added beforehand") as dlg:
+                dlg.ShowModal()
             return
-
-        # Try to find the collision tree
-        item = self.entry_list.GetFirstChild(bsa_entry)[0]
-        first_text = self.entry_list.GetItemText(item)
-        sub_entry = None
-        while item.IsOk():
-            text = self.entry_list.GetItemText(item)
-            if text.startswith("Expiration"):
-                sub_entry = item
-                break
-            item = self.entry_list.GetNextSibling(item)
-
-        # Create collision tree if it doesn't exist
-        if not sub_entry:
-            index = 1 if first_text.startswith("Collision") else 0
-            sub_entry = self.entry_list.InsertItem(bsa_entry, index, "Expiration (After Effects)", data=data.expirations)
-
-        # Create new expiration
-        expiration = Expiration()
-        expiration.paste(copied_entry)
-
-        # Add it collision list
-        data.expirations.append(expiration)
-
-        # Add it to tree
-        new_item = self.entry_list.AppendItem(sub_entry, f'{len(data.expirations) - 1}', data=expiration)
-        return new_item, expiration
 
     def add_item(self, bsa_value, copied_entry=None, bsa_entry=None):
         if copied_entry and bsa_value != copied_entry.type:
@@ -556,16 +562,21 @@ class MainPanel(wx.Panel):
         return item, entry
 
     def on_add_item(self, _, bsa_value):
+        new_item = None
         if bsa_value == -2:
             new_item, _ = self.add_collision()
         elif bsa_value == -1:
-            new_item, _ = self.add_expiration()
+            result = self.add_expiration()
+            if result:
+                new_item, _ = result
         else:
             new_item, _ = self.add_item(bsa_value)
-        self.select_item(new_item)
-        self.reindex()
-        self.on_select(None)
-        pub.sendMessage('set_status_bar', text=f"Added new {ITEM_TYPES[bsa_value].__name__}")
+
+        if (new_item):
+            self.select_item(new_item)
+            self.reindex()
+            self.on_select(None)
+            pub.sendMessage('set_status_bar', text=f"Added new {ITEM_TYPES[bsa_value].__name__}")
 
     def on_delete(self, _):
         # Get only the parents and select them.
