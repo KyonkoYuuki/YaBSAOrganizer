@@ -681,7 +681,7 @@ class MainPanel(wx.Panel):
         for sel in selected:
             self.update_entry(sel, entry)
 
-
+        self.bsa.has_comments = True
         pub.sendMessage('set_status_bar', text=f'Comment Added')
 
     def on_copy(self, _):

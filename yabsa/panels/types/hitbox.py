@@ -15,7 +15,7 @@ class HitboxPanel(BasePanel):
         self.i_00 = self.add_hex_entry(self.unknown_page, 'I_00', max=MAX_UINT16)
         self.i_02 = self.add_hex_entry(self.unknown_page, 'I_02', max=MAX_UINT16)
         self.i_04 = self.add_hex_entry(self.unknown_page, 'I_04', max=MAX_UINT16)
-        self.i_06 = self.add_split_hex_entry(self.entry_page, 'I_06', bytes=1)
+        self.i_06 = self.add_split_hex_entry(self.entry_page, 'I_06', bytes=2)
 
         self.position_x = self.add_float_entry(self.entry_page, 'Position X')
         self.position_y = self.add_float_entry(self.entry_page, 'Position Y')
