@@ -16,7 +16,7 @@ from yabsa.dlg.find import FindDialog
 from yabsa.dlg.replace import ReplaceDialog
 
 
-VERSION = '2.0.0'
+VERSION = '2.0.1'
 
 
 class MainWindow(wx.Frame):

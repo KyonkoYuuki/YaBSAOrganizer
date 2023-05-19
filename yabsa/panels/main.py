@@ -295,7 +295,7 @@ class MainPanel(wx.Panel):
             item = self.entry_list.GetNextSibling(item)
         return entry_ids
 
-    def reindex(self):
+    def reindex(self, selected=None):
         for i, entry in enumerate(self.bsa.entries):
             # entry.flags = entry.flags & 0xF if len(entry.sub_entries) > 0 else (entry.flags & 0x0F) | 0x80000000
             entry.sub_entries.sort(key=lambda n: n.type)
@@ -309,6 +309,7 @@ class MainPanel(wx.Panel):
 
         # Fix tree names
         while item.IsOk():
+            to_delete = None
             data = self.entry_list.GetItemData(item)
             if data and isinstance(data, list):
                 name = DataList('my_list', data).get_name()
@@ -320,21 +321,22 @@ class MainPanel(wx.Panel):
             if name == 'Entry':
                 self.entry_list.SetItemText(item, f'{data.index}: Entry{data.getDisplayComment()}')
             elif name == 'SubEntry':
-                self.entry_list.SetItemText(item, f'{data.type}: {data.get_type_name()}')
-                sub_entry = self.entry_list.GetItemData(item)
-                for entry in sub_entry.items:
-                    item = get_next_item(self.entry_list, item)
-                    self.entry_list.SetItemData(item, entry)
-                    # UNLEASHED: do the same as the build_sub_tree function
+                if selected != item  and not self.entry_list.GetFirstChild(item)[0].IsOk():
+                    to_delete = item
+                else:
+                    self.entry_list.SetItemText(item, f'{data.type}: {data.get_type_name()}')
+                    sub_entry = self.entry_list.GetItemData(item)
+                    for entry in sub_entry.items:
+                        item = get_next_item(self.entry_list, item)
+                        self.entry_list.SetItemData(item, entry)
+                        # UNLEASHED: do the same as the build_sub_tree function
+                        if entry.description and entry.description_type:
+                            self.entry_list.SetItemText(item, str(entry.start_time) + " - " +
+                                                        entry.description.get(entry.__getattr__(entry.description_type),
+                                                                              'Unknown'))
+                        else:
+                            self.entry_list.SetItemText(item, str(entry.start_time))
 
-
-
-                    if entry.description and entry.description_type:
-                        self.entry_list.SetItemText(item, str(entry.start_time) + " - " +
-                                                    entry.description.get(entry.__getattr__(entry.description_type),
-                                                                          'Unknown'))
-                    else:
-                        self.entry_list.SetItemText(item, str(entry.start_time))
             #Collision and Expiration
             elif name == "my_list":
                 for n, collision in enumerate(data):
@@ -349,6 +351,8 @@ class MainPanel(wx.Panel):
                         self.entry_list.SetItemText(item, f'{n}')
 
             item = get_next_item(self.entry_list, item)
+            if to_delete:
+                self.entry_list.Delete(to_delete)
 
 
     def get_entry_item_pair(self, entry):
@@ -585,14 +589,34 @@ class MainPanel(wx.Panel):
     def on_delete(self, _):
         # Get only the parents and select them.
         selected = self.get_selected_root_nodes()
+        data = [self.entry_list.GetItemData(item) for item in selected]
         if not selected:
             return
+        # First unselect children if parents are chosen
+        delete_bsa = True
+
+        # See if bac entries are part of the selected
+        if any(isinstance(entry, Entry) for entry in data):
+            with wx.MessageDialog(self, 'Delete BSA entry(s) as well?', style=wx.YES | wx.NO | wx.CANCEL) as dlg:
+                res = dlg.ShowModal()
+                if res == wx.ID_YES:
+                    delete_bsa = True
+                elif res == wx.ID_NO:
+                    delete_bsa = False
+                else:
+                    return
 
         # Loop over and delete
         for item in reversed(selected):
             data = self.entry_list.GetItemData(item)
             if data.get_name() == 'Entry':
-                self.bsa.entries.remove(data)
+                if delete_bsa:
+                    self.bsa.entries.remove(data)
+                else:
+                    self.bsa.entries[data.index].sub_entries.clear()
+                    child = self.entry_list.GetFirstChild(item)[0]
+                    while child.IsOk():
+                        sibling, child = child, self.entry_list.GetNextSibling(child)
             elif data.get_name() == 'SubEntry':
                 parent = self.entry_list.GetItemData(self.entry_list.GetItemParent(item))
                 parent.sub_entries.remove(data)
@@ -611,6 +635,7 @@ class MainPanel(wx.Panel):
             else:
                 parent = self.entry_list.GetItemData(self.entry_list.GetItemParent(item))
                 parent.items.remove(data)
+
             self.entry_list.Delete(item)
         self.reindex()
         pub.sendMessage('set_status_bar', text="Deleted successfully")
@@ -635,7 +660,7 @@ class MainPanel(wx.Panel):
         # update later to avoid offsetting twice
         for sel in selected:
             self.update_item(sel, entry)
-            self.reindex()
+        self.reindex()
 
         pub.sendMessage('set_status_bar', text=f'Offset {len(selected)} Entries')
 
@@ -662,7 +687,7 @@ class MainPanel(wx.Panel):
         # update later to avoid offsetting twice
         for sel in selected:
             self.update_item(sel, entry)
-            self.reindex()
+        self.reindex()
 
         pub.sendMessage('set_status_bar', text=f'incrementally Offset {len(selected)} Entries')
 
